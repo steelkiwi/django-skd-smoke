@@ -11,12 +11,12 @@ from .views import IsAuthenticated, OnlyPOSTRequest, NonExistentURL
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^$', TemplateView.as_view(template_name="base.html")),
-    url(r'^login$', login, {'template_name': 'login.html'}, name='login'),
-    url(r'^logout$', logout, {'template_name': 'logout.html'}, name='logout'),
-    url(r'^is_authenticated$', IsAuthenticated.as_view(),
+    url(r'^login/$', login, {'template_name': 'login.html'}, name='login'),
+    url(r'^logout/$', logout, {'template_name': 'logout.html'}, name='logout'),
+    url(r'^is_authenticated/$', IsAuthenticated.as_view(),
         name='is_authenticated'),
-    url(r'^only_post_request$', OnlyPOSTRequest.as_view(),
+    url(r'^only_post_request/$', OnlyPOSTRequest.as_view(),
         name='only_post_request'),
-    url(r'^non_existent_url$', NonExistentURL.as_view(),
+    url(r'^non_existent_url/$', NonExistentURL.as_view(),
         name='non_existent_url'),
 ]

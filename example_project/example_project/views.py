@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+from django.core.urlresolvers import reverse_lazy
 
-from django.http import HttpResponse, HttpResponseForbidden, \
-    HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseNotFound
+from django.views.generic import View, TemplateView
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 
-from django.views.generic import View
+
+class LoginRequiredMixin(object):
+    @method_decorator(login_required(login_url=reverse_lazy('login')))
+    def dispatch(self, request, *args, **kwargs):
+        return super(LoginRequiredMixin, self).dispatch(
+            request, *args, **kwargs)
 
 
-class IsAuthenticated(View):
-    """
-    If user is authenticated returned 200, else 403.
-    """
+class IsAuthenticated(LoginRequiredMixin, TemplateView):
+
     def get(self, request, *args, **kwargs):
-        if request.user.is_authenticated():
-            return HttpResponse()
-        else:
-            return HttpResponseForbidden()
+        return HttpResponse()
 
 
 class OnlyPOSTRequest(View):
