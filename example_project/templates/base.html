@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body>
+{% if user.is_authenticated %}
+    <p>
+        Welcome, {{ user.get_username }}. Thanks for logging in.
+        <a href="{% url 'logout' %}">Log out.</a>
+    </p>
+{% else %}
+    <p>Welcome, new user. Please <a href="{% url 'login' %}">log in</a>.</p>
+{% endif %}
+{% block content %}
+    <h1>SteelKiwi Dev.</h1>
+{% endblock content %}
+</body>
+</html>
