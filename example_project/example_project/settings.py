@@ -106,5 +106,3 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
-
-DJANGO_SKD_SMOKE_TESTS_CONFIG_MODULE = 'example_project.smoketests'
