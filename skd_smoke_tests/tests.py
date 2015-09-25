@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import types
 from unittest import TestCase
 
-from skd_smoke.__init__ import generate_test_method, prepare_test_name, \
+from skd_smoke import generate_test_method, prepare_test_name, \
     prepare_configuration, generate_fail_test_method, prepare_test_method_doc
 
 
