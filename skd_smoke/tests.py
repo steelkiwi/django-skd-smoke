@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import unicode_literals, print_function
 from importlib import import_module
 
 from django.core.exceptions import ImproperlyConfigured
@@ -15,7 +15,7 @@ try:
     tests_config_module = import_module(
         app_settings.SKD_SMOKE_TESTS_CONFIG_MODULE)
 except Exception as e:
-    print 'Error during import of django-skd-smoke config module'
+    print('Error during import of django-skd-smoke config module')
     raise
 else:
     if hasattr(tests_config_module, 'TESTS_CONFIGURATION') and \

@@ -37,13 +37,13 @@ class GenerateTestMethodsMeta(type):
                                                        []):
             status_text = STATUS_CODE_TEXT.get(status, 'UNKNOWN')
 
+            test_method_name = prepare_test_name(urlname, method, status)
+
             test_method = generate_test_method(urlname, status, method, data)
-            test_method.__name__ = name
+            test_method.__name__ = str(test_method_name)
             test_method.__doc__ = '%s %s %s "%s" %r' % (
                 method, urlname, status, status_text, data
             )
-
-            test_method_name = prepare_test_name(urlname, method, status)
 
             attrs[test_method_name] = test_method
         return super(GenerateTestMethodsMeta, mcs).__new__(
