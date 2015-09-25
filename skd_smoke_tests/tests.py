@@ -10,11 +10,11 @@ from skd_smoke import generate_test_method, prepare_test_name, \
 class SmokeGeneratorTestCase(TestCase):
 
     def test_prepare_configuration(self):
-        test = prepare_configuration([(u'a', 200, u'GET'),
-                                      (u'b', 200, u'GET')])
+        test = prepare_configuration([('a', 200, 'GET'),
+                                      ('b', 200, 'GET')])
         self.assertIsNotNone(test)
         self.assertEquals(
-            test, [(u'a', 200, u'GET', None), (u'b', 200, u'GET', None)])
+            test, [('a', 200, 'GET', None), ('b', 200, 'GET', None)])
 
     def test_generate_fail_test_method(self):
         test = generate_fail_test_method('test')
