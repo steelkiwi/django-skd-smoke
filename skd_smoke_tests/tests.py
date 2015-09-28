@@ -105,7 +105,7 @@ class SmokeTestCaseTesting(TestCase):
 
     def test_empty_configuration(self):
         EmptyConfig = type(
-            b'EmptyConfig', (SmokeTestCase,), {'TESTS_CONFIGURATION': ()})
+            str('BrokenConfig'), (SmokeTestCase,), {'TESTS_CONFIGURATION': ()})
         self.assertFalse(
             self.check_if_class_contains_test_methods(EmptyConfig),
             'TestCase contains generated test method but should not '
@@ -121,7 +121,7 @@ class SmokeTestCaseTesting(TestCase):
             EmptyConfig, EMPTY_TEST_CONFIGURATION_MSG)
 
     def test_configuration_in_wrong_type(self):
-        BrokenConfig = type(b'BrokenConfig', (SmokeTestCase,), {})
+        BrokenConfig = type(str('BrokenConfig'), (SmokeTestCase,), {})
         self.assertFalse(
             self.check_if_class_contains_test_methods(BrokenConfig),
             'TestCase contains generated test method but should not '
@@ -142,7 +142,9 @@ class SmokeTestCaseTesting(TestCase):
         )
 
         BrokenConfig = type(
-            b'BrokenConfig', (SmokeTestCase,), {'TESTS_CONFIGURATION': conf})
+            str('BrokenConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
         self.assertFalse(
             self.check_if_class_contains_test_methods(BrokenConfig),
             'TestCase contains generated test method but should not '
@@ -163,7 +165,9 @@ class SmokeTestCaseTesting(TestCase):
         )
 
         CorrectConfig = type(
-            b'CorrectConfig', (SmokeTestCase,), {'TESTS_CONFIGURATION': conf})
+            str('CorrectConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
         self.assertTrue(
             self.check_if_class_contains_test_methods(CorrectConfig),
             'TestCase contains generated test method but should not '
@@ -203,7 +207,9 @@ class SmokeTestCaseTesting(TestCase):
         mock_uuid4.return_value = MagicMock(hex='ffffffff')
 
         CorrectConfig = type(
-            b'CorrectConfig', (SmokeTestCase,), {'TESTS_CONFIGURATION': conf})
+            str('CorrectConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
         self.assertTrue(
             self.check_if_class_contains_test_methods(CorrectConfig),
             'TestCase contains generated test method but should not '
