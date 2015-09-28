@@ -1,0 +1,16 @@
+language: python
+python:
+  - "2.7"
+  - "3.4"
+  - pypy
+env:
+  - DJANGO_VERSION=1.8.*
+  - DJANGO_VERSION=1.7.*
+  - DJANGO_VERSION=1.4.*
+matrix:
+    exclude:
+      - python: "3.4"
+        env: DJANGO_VERSION=1.4.*
+install:
+  - pip install -q Django=="$DJANGO_VERSION"
+script: python -m unittest discover -s tests
