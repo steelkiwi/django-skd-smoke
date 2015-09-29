@@ -42,7 +42,9 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'skd_smoke'
+    'articles',
+
+    'skd_smoke',
 )
 
 MIDDLEWARE_CLASSES = (

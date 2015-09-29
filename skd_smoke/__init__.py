@@ -26,6 +26,11 @@ INCORRECT_TEST_CONFIGURATION_MSG = \
     'tuple. Please review skd_smoke/tests.py or refer to project ' \
     'documentation on https://github.com/steelkiwi/django-skd-smoke'
 
+UNSUPPORTED_CONFIGURATION_KEY_MSG = \
+    'django-skd-smoke configuration does not support this key: "%s".'
+
+CONFIGURATION_KEYS = {'get_url_kwargs', 'request_data'}
+
 
 def prepare_configuration(tests_configuration):
     confs = []
@@ -34,9 +39,13 @@ def prepare_configuration(tests_configuration):
 
         for test_config in tests_configuration:
             if len(test_config) == 3:
-                test_config += (None,)  # append data=None if not defined
+                test_config += ({},)
             elif len(test_config) == 4:
-                pass
+                diff = set(test_config[3].keys()) - CONFIGURATION_KEYS
+                if diff:
+                    raise ImproperlyConfigured(
+                        UNSUPPORTED_CONFIGURATION_KEY_MSG % ', '.join(diff))
+
             else:
                 raise ImproperlyConfigured(IMPROPERLY_BUILT_CONFIGURATION_MSG)
 
@@ -57,10 +66,14 @@ def generate_fail_test_method(exception_stacktrace):
     return fail_method
 
 
-def generate_test_method(urlname, status, method='GET', data=None):
+def generate_test_method(urlname, status, method='GET', get_url_kwargs=None,
+                         request_data=None):
     def new_test_method(self):
-        resolved_url = resolve_url(urlname)
-        prepared_data = data or {}
+        if get_url_kwargs:
+            resolved_url = resolve_url(urlname, **get_url_kwargs())
+        else:
+            resolved_url = resolve_url(urlname)
+        prepared_data = request_data or {}
         function = getattr(self.client, method.lower())
         response = function(resolved_url, data=prepared_data)
         self.assertEqual(response.status_code, status)
@@ -80,6 +93,7 @@ def prepare_test_name(urlname, method, status):
 
 
 def prepare_test_method_doc(method, urlname, status, status_text, data):
+    data = data or {}
     return '%(method)s %(urlname)s %(status)s "%(status_text)s" %(data)r' % {
         'method': method,
         'urlname': urlname,
@@ -112,15 +126,17 @@ class GenerateTestMethodsMeta(type):
             setattr(cls, fail_method_name, fail_method)
         else:
             for urlname, status, method, data in config:
+                get_url_kwargs = data.get('get_url_kwargs', None)
+                request_data = data.get('request_data', None)
                 status_text = STATUS_CODE_TEXT.get(status, 'UNKNOWN')
 
                 test_method_name = prepare_test_name(urlname, method, status)
 
-                test_method = generate_test_method(urlname, status, method,
-                                                   data)
+                test_method = generate_test_method(
+                    urlname, status, method, get_url_kwargs, request_data)
                 test_method.__name__ = str(test_method_name)
                 test_method.__doc__ = prepare_test_method_doc(
-                    method, urlname, status, status_text, data)
+                    method, urlname, status, status_text, request_data)
 
                 setattr(cls, test_method_name, test_method)
 

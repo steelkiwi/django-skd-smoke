@@ -6,10 +6,10 @@ from . import SmokeTestCase
 
 class InitialSmokeTestCase(SmokeTestCase):
     TESTS_CONFIGURATION = (
-        # (url, status, method, data=None)
+        # (url, status, method, {'get_url_kwargs': None, 'request_data': None})
         ('admin:login', 200, 'GET'),
         # the same:
-        # ('admin:login', 200, 'GET', None),
+        # ('admin:login', 200, 'GET', {}),
 
         # authenticated users only
         # ('profile', 302, 'GET'),
