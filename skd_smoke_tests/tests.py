@@ -52,7 +52,7 @@ class SmokeGeneratorTestCase(TestCase):
         self.assertEquals(test, 'GET urlname 200 "status_text" None')
 
 
-class SmokeTestCaseTesting(TestCase):
+class SmokeTestCaseTestCase(TestCase):
 
     def check_if_class_contains_test_methods(self, cls, prefix='test_smoke'):
 
@@ -65,7 +65,7 @@ class SmokeTestCaseTesting(TestCase):
     def check_if_class_contains_fail_test_method(self, cls):
         return hasattr(cls, getattr(cls, 'FAIL_METHOD_NAME'))
 
-    def mock_and_check_fail_test_method(self, cls, msg):
+    def assert_called_fail_test_method(self, cls, msg):
         method_name = getattr(cls, 'FAIL_METHOD_NAME')
         fail_test_method = getattr(cls, method_name)
 
@@ -74,7 +74,7 @@ class SmokeTestCaseTesting(TestCase):
         self.assertEqual(mock.fail.call_count, 1)
         self.assertIn(msg, mock.fail.call_args_list[0][0][0])
 
-    def check_generated_test_method(self, cls, name, configuration, doc, url):
+    def assert_generated_test_method(self, cls, name, configuration, doc, url):
         # check existence
         self.assertTrue(hasattr(cls, name),
                         'There is no "%s" in %s but should be.' % (name, cls))
@@ -89,14 +89,13 @@ class SmokeTestCaseTesting(TestCase):
         # check __doc__
         self.assertEqual(test_method.__doc__, doc)
 
-        method_mock = MagicMock()
-        method_mock.return_value = MagicMock(status_code=status_code)
+        method_mock = Mock()
+        method_mock.return_value = Mock(status_code=status_code)
 
         # check actual run
-        client_mock = MagicMock(**{method_lower: method_mock})
+        client_mock = Mock(**{method_lower: method_mock})
 
-        testcase_mock = Mock(spec=cls, client=client_mock)
-        testcase_mock.assertEqual = Mock()
+        testcase_mock = Mock(spec=cls, assertEqual=Mock(), client=client_mock)
         test_method(testcase_mock)
         getattr(client_mock, method_lower).assert_called_once_with(
             url, data=data or {})
@@ -117,7 +116,7 @@ class SmokeTestCaseTesting(TestCase):
             'that its configuration is empty.'
         )
 
-        self.mock_and_check_fail_test_method(
+        self.assert_called_fail_test_method(
             EmptyConfig, EMPTY_TEST_CONFIGURATION_MSG)
 
     def test_configuration_in_wrong_type(self):
@@ -133,7 +132,7 @@ class SmokeTestCaseTesting(TestCase):
             'that its configuration is broken.'
         )
 
-        self.mock_and_check_fail_test_method(
+        self.assert_called_fail_test_method(
             BrokenConfig, INCORRECT_TEST_CONFIGURATION_MSG)
 
     def test_configuration_built_incorrectly(self):
@@ -156,7 +155,7 @@ class SmokeTestCaseTesting(TestCase):
             'that its configuration is broken.'
         )
 
-        self.mock_and_check_fail_test_method(
+        self.assert_called_fail_test_method(
             BrokenConfig, IMPROPERLY_BUILT_CONFIGURATION_MSG)
 
     def test_simple_correct_configuration(self):
@@ -170,8 +169,7 @@ class SmokeTestCaseTesting(TestCase):
             {'TESTS_CONFIGURATION': conf})
         self.assertTrue(
             self.check_if_class_contains_test_methods(CorrectConfig),
-            'TestCase contains generated test method but should not '
-            '(test configuration is broken).'
+            'TestCase should contain at least one generated test method.'
         )
         self.assertFalse(
             self.check_if_class_contains_fail_test_method(CorrectConfig),
@@ -204,7 +202,7 @@ class SmokeTestCaseTesting(TestCase):
         ]
 
         mock_django_resolve_url.return_value = url = '/url/'
-        mock_uuid4.return_value = MagicMock(hex='ffffffff')
+        mock_uuid4.return_value = Mock(hex='ffffffff')
 
         CorrectConfig = type(
             str('CorrectConfig'),
@@ -212,8 +210,7 @@ class SmokeTestCaseTesting(TestCase):
             {'TESTS_CONFIGURATION': conf})
         self.assertTrue(
             self.check_if_class_contains_test_methods(CorrectConfig),
-            'TestCase contains generated test method but should not '
-            '(test configuration is broken).'
+            'TestCase should contain at least one generated test method.'
         )
         self.assertFalse(
             self.check_if_class_contains_fail_test_method(CorrectConfig),
@@ -222,5 +219,5 @@ class SmokeTestCaseTesting(TestCase):
         )
 
         for i, name in enumerate(expected_test_method_names):
-            self.check_generated_test_method(CorrectConfig, name, conf[i],
-                                             expected_docs[i], url)
+            self.assert_generated_test_method(CorrectConfig, name, conf[i],
+                                              expected_docs[i], url)
