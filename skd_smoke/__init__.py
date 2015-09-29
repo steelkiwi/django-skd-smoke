@@ -11,6 +11,21 @@ from django.shortcuts import resolve_url
 from django.test import TestCase
 from django.utils import six
 
+IMPROPERLY_BUILT_CONFIGURATION_MSG = \
+    'Every test method config should contain three or four elements (url, ' \
+    'status, method, data=None). Please review skd_smoke/tests.py or refer ' \
+    'to documentation on https://github.com/steelkiwi/django-skd-smoke'
+
+EMPTY_TEST_CONFIGURATION_MSG = \
+    'django-skd-smoke TestCase has empty TESTS_CONFIGURATION. Please review ' \
+    'skd_smoke/tests.py or refer to project documentation on ' \
+    'https://github.com/steelkiwi/django-skd-smoke'
+
+INCORRECT_TEST_CONFIGURATION_MSG = \
+    'django-skd-smoke TestCase should define TESTS_CONFIGURATION list or ' \
+    'tuple. Please review skd_smoke/tests.py or refer to project ' \
+    'documentation on https://github.com/steelkiwi/django-skd-smoke'
+
 
 def prepare_configuration(tests_configuration):
     confs = []
@@ -23,21 +38,15 @@ def prepare_configuration(tests_configuration):
             elif len(test_config) == 4:
                 pass
             else:
-                raise ImproperlyConfigured(
-                   'Every test method config should contain three or four '
-                   'elements (url, status, method, data=None). Please '
-                   'review skd_smoke/smoketests_example.py or refer to '
-                   'documentation on '
-                   'https://github.com/steelkiwi/django-skd-smoke')
+                raise ImproperlyConfigured(IMPROPERLY_BUILT_CONFIGURATION_MSG)
 
             confs.append(test_config)
+
+        if not confs:
+            raise ImproperlyConfigured(EMPTY_TEST_CONFIGURATION_MSG)
+
     else:
-        raise ImproperlyConfigured(
-            'django-skd-smoke config module should define '
-            'TESTS_CONFIGURATION list or tuple. Please review '
-            'skd_smoke/smoketests_example.py or refer to project '
-            'documentation on '
-            'https://github.com/steelkiwi/django-skd-smoke')
+        raise ImproperlyConfigured(INCORRECT_TEST_CONFIGURATION_MSG)
 
     return confs
 
@@ -59,7 +68,7 @@ def generate_test_method(urlname, status, method='GET', data=None):
 
 
 def prepare_test_name(urlname, method, status):
-    prepared_url = urlname.replace(':', '_').replace('/', '')
+    prepared_url = urlname.replace(':', '_').strip('/').replace('/', '_')
     prepared_method = method.lower()
     name = 'test_smoke_%(url)s_%(method)s_%(status)s_%(uuid)s' % {
         'url': prepared_url,
@@ -97,7 +106,7 @@ class GenerateTestMethodsMeta(type):
             config = prepare_configuration(cls.TESTS_CONFIGURATION)
         except Exception:
             fail_method = generate_fail_test_method(traceback.format_exc())
-            fail_method_name = 'test_fail_cause_bad_configuration'
+            fail_method_name = cls.FAIL_METHOD_NAME
             fail_method.__name__ = str(fail_method_name)
 
             setattr(cls, fail_method_name, fail_method)
@@ -120,3 +129,4 @@ class GenerateTestMethodsMeta(type):
 
 class SmokeTestCase(six.with_metaclass(GenerateTestMethodsMeta, TestCase)):
     TESTS_CONFIGURATION = None
+    FAIL_METHOD_NAME = 'test_fail_cause_bad_configuration'
