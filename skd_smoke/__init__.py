@@ -27,7 +27,7 @@ INCORRECT_TEST_CONFIGURATION_MSG = \
     'documentation on https://github.com/steelkiwi/django-skd-smoke'
 
 UNSUPPORTED_CONFIGURATION_KEY_MSG = \
-    'django-skd-smoke configuration does not support this key: "%s".'
+    'django-skd-smoke configuration does not support those keys: %s.'
 
 CONFIGURATION_KEYS = {'get_url_kwargs', 'request_data'}
 
