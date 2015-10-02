@@ -30,7 +30,15 @@ INCORRECT_TEST_CONFIGURATION_MSG = \
 UNSUPPORTED_CONFIGURATION_KEY_MSG = \
     'django-skd-smoke configuration does not support those keys: %s.'
 
-CONFIGURATION_KEYS = {'get_url_kwargs', 'request_data'}
+CONFIGURATION_KEYS = {
+    'initialize',  # callable object which is called at the very beginning of
+                   # generated test method
+    'get_url_kwargs',  # callable object which returns dictionary to resolve
+                       # url using ``django.shortcuts.resolve_url``
+    'request_data',  # data dictionary which is passed into http method request
+    'get_user_credentials'  # callable object which returns dictionary to login
+                            # user into ``TestCase.client``
+}
 
 UNKNOWN_HTTP_METHOD_MSG = \
     'Your django-skd-smoke configuration defines unknown http method: "%s".'
@@ -97,8 +105,9 @@ def generate_fail_test_method(exception_stacktrace):
     return fail_method
 
 
-def generate_test_method(urlname, status, method='GET', get_url_kwargs=None,
-                         request_data=None):
+def generate_test_method(urlname, status, method='GET', initialize=None,
+                         get_url_kwargs=None, request_data=None,
+                         get_user_credentials=None):
     """
     Generates test method which calls ``get_url_kwargs`` callable if any,
     resolves supplied ``urlname``, calls proper ``self.client`` method (get,
@@ -108,19 +117,27 @@ def generate_test_method(urlname, status, method='GET', get_url_kwargs=None,
     :param urlname: plain url or urlname or namespace:urlname
     :param status: http status code
     :param method: http method (get, post, etc.)
+    :param initialize: callable object which is called in the very beginning \
+        of test method
     :param get_url_kwargs: callable object which returns dictionary to resolve\
         url using ``django.shortcuts.resolve_url``
     :param request_data: data dictionary which is passed into http method \
         request
+    :param get_user_credentials: callable object which returns dictionary to \
+        login user into ``TestCase.client``
     :return: new test method
 
     """
     def new_test_method(self):
+        if initialize:
+            initialize()
         if get_url_kwargs:
             resolved_url = resolve_url(urlname, **get_url_kwargs())
         else:
             resolved_url = resolve_url(urlname)
         prepared_data = request_data or {}
+        if get_user_credentials:
+            self.client.login(**get_user_credentials())
         function = getattr(self.client, method.lower())
         response = function(resolved_url, data=prepared_data)
         self.assertEqual(response.status_code, status)
@@ -200,14 +217,18 @@ class GenerateTestMethodsMeta(type):
             setattr(cls, fail_method_name, fail_method)
         else:
             for urlname, status, method, data in config:
+                initialize = data.get('initialize', None)
                 get_url_kwargs = data.get('get_url_kwargs', None)
                 request_data = data.get('request_data', None)
+                get_user_credentials = data.get('get_user_credentials', None)
                 status_text = STATUS_CODE_TEXT.get(status, 'UNKNOWN')
 
                 test_method_name = prepare_test_name(urlname, method, status)
 
                 test_method = generate_test_method(
-                    urlname, status, method, get_url_kwargs, request_data)
+                    urlname, status, method, initialize, get_url_kwargs,
+                    request_data, get_user_credentials
+                )
                 test_method.__name__ = str(test_method_name)
                 test_method.__doc__ = prepare_test_method_doc(
                     method, urlname, status, status_text, request_data)
