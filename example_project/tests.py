@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from articles.models import Article
 from skd_smoke import SmokeTestCase
 
 
-class ExampleProjectSmokeTestCase(SmokeTestCase):
+def create_article():
+    article = Article.objects.create(headline='aaa')
+    return {'pk': article.pk}
+
+
+class InitialSmokeTestCase(SmokeTestCase):
     TESTS_CONFIGURATION = (
-        # (url, status, method, data=None)
+        # (url, status, method, {'get_url_kwargs': None, 'request_data': None})
         ('admin:login', 200, 'GET'),
-        ('login', 200, 'GET'),
-        ('is_authenticated', 302, 'GET'),
-        ('only_post_request', 405, 'GET'),
-        ('only_post_request', 200, 'POST'),
-        ('non_existent_url', 404, 'GET'),
-        ('non_existent_url', 404, 'POST'),
-        ('/non_existent_url2/', 404, 'GET'),
-        ('/non_existent_url2/', 404, 'POST'),
+        ('articles:articles', 200, 'GET'),
+        ('articles:article', 200, 'GET', {'get_url_kwargs': create_article}),
     )

@@ -5,11 +5,17 @@ from . import SmokeTestCase
 
 
 class InitialSmokeTestCase(SmokeTestCase):
+    """
+    Just example of using library. You can test it in your project if you run
+    ``./manage.py test skd_smoke``. Correct usage requires subclass creation of
+    ``skd_smoke.SmokeTestCase`` inside any of your project ``tests`` module.
+    """
+
     TESTS_CONFIGURATION = (
-        # (url, status, method, data=None)
+        # (url, status, method, {'get_url_kwargs': None, 'request_data': None})
         ('admin:login', 200, 'GET'),
         # the same:
-        # ('admin:login', 200, 'GET', None),
+        # ('admin:login', 200, 'GET', {}),
 
         # authenticated users only
         # ('profile', 302, 'GET'),
