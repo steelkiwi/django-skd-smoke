@@ -2,13 +2,16 @@
 from __future__ import unicode_literals, print_function
 import types
 from unittest import TestCase
+
 from mock import Mock, patch
+from django.core.exceptions import ImproperlyConfigured
 from django.core.handlers.wsgi import STATUS_CODE_TEXT
 from skd_smoke import generate_test_method, prepare_test_name, \
     prepare_configuration, generate_fail_test_method, prepare_test_method_doc,\
     SmokeTestCase, EMPTY_TEST_CONFIGURATION_MSG, \
     INCORRECT_TEST_CONFIGURATION_MSG, IMPROPERLY_BUILT_CONFIGURATION_MSG, \
-    CONFIGURATION_KEYS, UNSUPPORTED_CONFIGURATION_KEY_MSG
+    CONFIGURATION_KEYS, UNSUPPORTED_CONFIGURATION_KEY_MSG, \
+    UNKNOWN_HTTP_METHOD_MSG, HTTP_METHODS
 
 
 class SmokeGeneratorTestCase(TestCase):
@@ -19,6 +22,21 @@ class SmokeGeneratorTestCase(TestCase):
         self.assertIsNotNone(test)
         self.assertEquals(
             test, [('a', 200, 'GET', {}), ('b', 200, 'GET', {})])
+
+    def test_prepare_configuration_with_incorrect_http_method(self):
+        unknown_http_method = 'unknown'
+        with self.assertRaises(ImproperlyConfigured) as cm:
+            prepare_configuration([('a', 200, unknown_http_method)])
+        raised_exception = cm.exception
+        self.assertEqual(UNKNOWN_HTTP_METHOD_MSG % unknown_http_method,
+                         raised_exception.message)
+
+    def test_prepare_configuration_with_all_http_methods(self):
+        config = []
+        for http_method in HTTP_METHODS:
+            config.append(('url', 200, http_method, {}))
+        prepared_config = prepare_configuration(config)
+        self.assertEqual(config, prepared_config)
 
     def test_generate_fail_test_method(self):
         test = generate_fail_test_method('test')

@@ -31,6 +31,12 @@ UNSUPPORTED_CONFIGURATION_KEY_MSG = \
     'django-skd-smoke configuration does not support those keys: %s.'
 
 CONFIGURATION_KEYS = {'get_url_kwargs', 'request_data'}
+
+UNKNOWN_HTTP_METHOD_MSG = \
+    'Your django-skd-smoke configuration defines unknown http method: "%s".'
+
+HTTP_METHODS = {'get', 'post', 'head', 'options', 'put', 'patch', 'detete',
+                'trace'}
 # end configuration error messages
 
 
@@ -60,6 +66,11 @@ def prepare_configuration(tests_configuration):
 
             else:
                 raise ImproperlyConfigured(IMPROPERLY_BUILT_CONFIGURATION_MSG)
+
+            http_method = test_config[2]
+            if http_method.lower() not in HTTP_METHODS:
+                raise ImproperlyConfigured(
+                    UNKNOWN_HTTP_METHOD_MSG % http_method)
 
             confs.append(test_config)
 
@@ -149,7 +160,7 @@ def prepare_test_method_doc(method, urlname, status, status_text, data):
     """
     data = data or {}
     return '%(method)s %(urlname)s %(status)s "%(status_text)s" %(data)r' % {
-        'method': method,
+        'method': method.upper(),
         'urlname': urlname,
         'status': status,
         'status_text': status_text,
