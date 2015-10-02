@@ -29,7 +29,7 @@ class SmokeGeneratorTestCase(TestCase):
             prepare_configuration([('a', 200, unknown_http_method)])
         raised_exception = cm.exception
         self.assertEqual(UNKNOWN_HTTP_METHOD_MSG % unknown_http_method,
-                         raised_exception.message)
+                         str(raised_exception))
 
     def test_prepare_configuration_with_all_http_methods(self):
         config = []
