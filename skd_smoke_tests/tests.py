@@ -139,7 +139,8 @@ class SmokeTestCaseTestCase(TestCase):
         # check actual run
         client_mock = Mock(**method_mocks)
 
-        testcase_mock = Mock(spec=cls, assertEqual=Mock(), client=client_mock)
+        testcase_mock = Mock(spec=cls, assertEqual=Mock(), client=client_mock,
+                             assertTrue=Mock())
         test_method(testcase_mock)
         getattr(client_mock, method_lower).assert_called_once_with(
             url, data=request_data)
@@ -208,7 +209,7 @@ class SmokeTestCaseTestCase(TestCase):
     def test_configuration_built_incorrectly2(self):
         data = {
             'request_data': {'param': 'value'},
-            'get_url_kwargs': lambda: None,
+            'get_url_kwargs': lambda _: None,
 
             # start unsupported data keys
             'unsupported_param1': 1,
@@ -319,7 +320,7 @@ class SmokeTestCaseTestCase(TestCase):
 
         url_kwargs = {'slug': 'cool_article'}
 
-        def get_url_kwargs():
+        def get_url_kwargs(testcase):
             return url_kwargs
 
         conf = (
@@ -371,7 +372,7 @@ class SmokeTestCaseTestCase(TestCase):
 
         user_credentials = {'username': 'test_user', 'password': '1234'}
 
-        def get_user_creadentials():
+        def get_user_creadentials(self):
             return user_credentials
 
         conf = (
@@ -454,4 +455,4 @@ class SmokeTestCaseTestCase(TestCase):
             CorrectConfig, expected_test_method_names[0], conf[0],
             expected_docs[0], url)
 
-        initialize_mock.assert_called_once_with()
+        self.assertEqual(initialize_mock.call_count, 1)

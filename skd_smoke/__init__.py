@@ -45,6 +45,10 @@ UNKNOWN_HTTP_METHOD_MSG = \
 
 HTTP_METHODS = {'get', 'post', 'head', 'options', 'put', 'patch', 'detete',
                 'trace'}
+
+INCORRECT_USER_CREDENTIALS = 'Supplied user credentials are incorrect: %r. ' \
+    'Ensure that related user was created successfully.'
+
 # end configuration error messages
 
 
@@ -130,14 +134,17 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
     """
     def new_test_method(self):
         if initialize:
-            initialize()
+            initialize(self)
         if get_url_kwargs:
-            resolved_url = resolve_url(urlname, **get_url_kwargs())
+            resolved_url = resolve_url(urlname, **get_url_kwargs(self))
         else:
             resolved_url = resolve_url(urlname)
         prepared_data = request_data or {}
         if get_user_credentials:
-            self.client.login(**get_user_credentials())
+            credentials = get_user_credentials(self)
+            logged_in = self.client.login(**credentials)
+            self.assertTrue(
+                logged_in, INCORRECT_USER_CREDENTIALS % credentials)
         function = getattr(self.client, method.lower())
         response = function(resolved_url, data=prepared_data)
         self.assertEqual(response.status_code, status)
