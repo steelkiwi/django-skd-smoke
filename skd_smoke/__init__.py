@@ -30,7 +30,25 @@ INCORRECT_TEST_CONFIGURATION_MSG = \
 UNSUPPORTED_CONFIGURATION_KEY_MSG = \
     'django-skd-smoke configuration does not support those keys: %s.'
 
-CONFIGURATION_KEYS = {'get_url_kwargs', 'request_data'}
+CONFIGURATION_KEYS = {
+    'initialize',  # callable object which is called at the very beginning of
+                   # generated test method
+    'get_url_kwargs',  # callable object which returns dictionary to resolve
+                       # url using ``django.shortcuts.resolve_url``
+    'request_data',  # data dictionary which is passed into http method request
+    'get_user_credentials'  # callable object which returns dictionary to login
+                            # user into ``TestCase.client``
+}
+
+UNKNOWN_HTTP_METHOD_MSG = \
+    'Your django-skd-smoke configuration defines unknown http method: "%s".'
+
+HTTP_METHODS = {'get', 'post', 'head', 'options', 'put', 'patch', 'detete',
+                'trace'}
+
+INCORRECT_USER_CREDENTIALS = 'Supplied user credentials are incorrect: %r. ' \
+    'Ensure that related user was created successfully.'
+
 # end configuration error messages
 
 
@@ -61,6 +79,11 @@ def prepare_configuration(tests_configuration):
             else:
                 raise ImproperlyConfigured(IMPROPERLY_BUILT_CONFIGURATION_MSG)
 
+            http_method = test_config[2]
+            if http_method.lower() not in HTTP_METHODS:
+                raise ImproperlyConfigured(
+                    UNKNOWN_HTTP_METHOD_MSG % http_method)
+
             confs.append(test_config)
 
         if not confs:
@@ -86,8 +109,9 @@ def generate_fail_test_method(exception_stacktrace):
     return fail_method
 
 
-def generate_test_method(urlname, status, method='GET', get_url_kwargs=None,
-                         request_data=None):
+def generate_test_method(urlname, status, method='GET', initialize=None,
+                         get_url_kwargs=None, request_data=None,
+                         get_user_credentials=None):
     """
     Generates test method which calls ``get_url_kwargs`` callable if any,
     resolves supplied ``urlname``, calls proper ``self.client`` method (get,
@@ -97,19 +121,30 @@ def generate_test_method(urlname, status, method='GET', get_url_kwargs=None,
     :param urlname: plain url or urlname or namespace:urlname
     :param status: http status code
     :param method: http method (get, post, etc.)
+    :param initialize: callable object which is called in the very beginning \
+        of test method
     :param get_url_kwargs: callable object which returns dictionary to resolve\
         url using ``django.shortcuts.resolve_url``
     :param request_data: data dictionary which is passed into http method \
         request
+    :param get_user_credentials: callable object which returns dictionary to \
+        login user into ``TestCase.client``
     :return: new test method
 
     """
     def new_test_method(self):
+        if initialize:
+            initialize(self)
         if get_url_kwargs:
-            resolved_url = resolve_url(urlname, **get_url_kwargs())
+            resolved_url = resolve_url(urlname, **get_url_kwargs(self))
         else:
             resolved_url = resolve_url(urlname)
         prepared_data = request_data or {}
+        if get_user_credentials:
+            credentials = get_user_credentials(self)
+            logged_in = self.client.login(**credentials)
+            self.assertTrue(
+                logged_in, INCORRECT_USER_CREDENTIALS % credentials)
         function = getattr(self.client, method.lower())
         response = function(resolved_url, data=prepared_data)
         self.assertEqual(response.status_code, status)
@@ -149,7 +184,7 @@ def prepare_test_method_doc(method, urlname, status, status_text, data):
     """
     data = data or {}
     return '%(method)s %(urlname)s %(status)s "%(status_text)s" %(data)r' % {
-        'method': method,
+        'method': method.upper(),
         'urlname': urlname,
         'status': status,
         'status_text': status_text,
@@ -189,14 +224,18 @@ class GenerateTestMethodsMeta(type):
             setattr(cls, fail_method_name, fail_method)
         else:
             for urlname, status, method, data in config:
+                initialize = data.get('initialize', None)
                 get_url_kwargs = data.get('get_url_kwargs', None)
                 request_data = data.get('request_data', None)
+                get_user_credentials = data.get('get_user_credentials', None)
                 status_text = STATUS_CODE_TEXT.get(status, 'UNKNOWN')
 
                 test_method_name = prepare_test_name(urlname, method, status)
 
                 test_method = generate_test_method(
-                    urlname, status, method, get_url_kwargs, request_data)
+                    urlname, status, method, initialize, get_url_kwargs,
+                    request_data, get_user_credentials
+                )
                 test_method.__name__ = str(test_method_name)
                 test_method.__doc__ = prepare_test_method_doc(
                     method, urlname, status, status_text, request_data)

@@ -43,8 +43,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
 
     'articles',
-
-    'skd_smoke',
 )
 
 MIDDLEWARE_CLASSES = (

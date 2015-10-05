@@ -2,13 +2,16 @@
 from __future__ import unicode_literals, print_function
 import types
 from unittest import TestCase
+
 from mock import Mock, patch
+from django.core.exceptions import ImproperlyConfigured
 from django.core.handlers.wsgi import STATUS_CODE_TEXT
 from skd_smoke import generate_test_method, prepare_test_name, \
     prepare_configuration, generate_fail_test_method, prepare_test_method_doc,\
     SmokeTestCase, EMPTY_TEST_CONFIGURATION_MSG, \
     INCORRECT_TEST_CONFIGURATION_MSG, IMPROPERLY_BUILT_CONFIGURATION_MSG, \
-    CONFIGURATION_KEYS, UNSUPPORTED_CONFIGURATION_KEY_MSG
+    CONFIGURATION_KEYS, UNSUPPORTED_CONFIGURATION_KEY_MSG, \
+    UNKNOWN_HTTP_METHOD_MSG, HTTP_METHODS
 
 
 class SmokeGeneratorTestCase(TestCase):
@@ -19,6 +22,21 @@ class SmokeGeneratorTestCase(TestCase):
         self.assertIsNotNone(test)
         self.assertEquals(
             test, [('a', 200, 'GET', {}), ('b', 200, 'GET', {})])
+
+    def test_prepare_configuration_with_incorrect_http_method(self):
+        unknown_http_method = 'unknown'
+        with self.assertRaises(ImproperlyConfigured) as cm:
+            prepare_configuration([('a', 200, unknown_http_method)])
+        raised_exception = cm.exception
+        self.assertEqual(UNKNOWN_HTTP_METHOD_MSG % unknown_http_method,
+                         str(raised_exception))
+
+    def test_prepare_configuration_with_all_http_methods(self):
+        config = []
+        for http_method in HTTP_METHODS:
+            config.append(('url', 200, http_method, {}))
+        prepared_config = prepare_configuration(config)
+        self.assertEqual(config, prepared_config)
 
     def test_generate_fail_test_method(self):
         test = generate_fail_test_method('test')
@@ -92,7 +110,8 @@ class SmokeTestCaseTestCase(TestCase):
         self.assertEqual(mock.fail.call_count, 1)
         self.assertIn(msg, mock.fail.call_args_list[0][0][0])
 
-    def assert_generated_test_method(self, cls, name, configuration, doc, url):
+    def assert_generated_test_method(self, cls, name, configuration, doc, url,
+                                     user_credentials=None):
         # check existence
         self.assertTrue(hasattr(cls, name),
                         'There is no "%s" in %s but should be.' % (name, cls))
@@ -111,15 +130,25 @@ class SmokeTestCaseTestCase(TestCase):
         method_mock = Mock()
         method_mock.return_value = Mock(status_code=status_code)
 
-        # check actual run
-        client_mock = Mock(**{method_lower: method_mock})
+        method_mocks = {method_lower: method_mock}
 
-        testcase_mock = Mock(spec=cls, assertEqual=Mock(), client=client_mock)
+        if user_credentials:
+            login_mock = Mock()
+            method_mocks['login'] = login_mock
+
+        # check actual run
+        client_mock = Mock(**method_mocks)
+
+        testcase_mock = Mock(spec=cls, assertEqual=Mock(), client=client_mock,
+                             assertTrue=Mock())
         test_method(testcase_mock)
         getattr(client_mock, method_lower).assert_called_once_with(
             url, data=request_data)
         testcase_mock.assertEqual.assert_called_once_with(
             status_code, status_code)
+
+        if user_credentials:
+            login_mock.assert_called_once_with(**user_credentials)
 
     def test_empty_configuration(self):
         EmptyConfig = type(
@@ -180,7 +209,7 @@ class SmokeTestCaseTestCase(TestCase):
     def test_configuration_built_incorrectly2(self):
         data = {
             'request_data': {'param': 'value'},
-            'get_url_kwargs': lambda: None,
+            'get_url_kwargs': lambda _: None,
 
             # start unsupported data keys
             'unsupported_param1': 1,
@@ -291,7 +320,7 @@ class SmokeTestCaseTestCase(TestCase):
 
         url_kwargs = {'slug': 'cool_article'}
 
-        def get_url_kwargs():
+        def get_url_kwargs(testcase):
             return url_kwargs
 
         conf = (
@@ -335,3 +364,95 @@ class SmokeTestCaseTestCase(TestCase):
         # url kwargs returned from call of get_url_kwargs() method
         mock_django_resolve_url.assert_called_once_with(
             conf[0][0], **url_kwargs)
+
+    @patch('skd_smoke.uuid4')
+    @patch('skd_smoke.resolve_url')
+    def test_generated_test_method_with_user_login(
+            self, mock_django_resolve_url, mock_uuid4):
+
+        user_credentials = {'username': 'test_user', 'password': '1234'}
+
+        def get_user_creadentials(self):
+            return user_credentials
+
+        conf = (
+            ('urlname_with_slug', 200, 'GET',
+             {'get_user_credentials': get_user_creadentials}),
+        )
+
+        expected_test_method_names = [
+            'test_smoke_urlname_with_slug_get_200_ffffffff',
+        ]
+
+        expected_docs = self.generate_docs_from_configuration(conf)
+
+        mock_django_resolve_url.return_value = url = '/url/'
+        mock_uuid4.return_value = Mock(hex='ffffffff')
+
+        CorrectConfig = type(
+            str('CorrectConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
+
+        if self.check_if_class_contains_fail_test_method(CorrectConfig):
+            mock = self.call_cls_method_by_name(CorrectConfig,
+                                                'FAIL_METHOD_NAME')
+            self.fail(
+                'Generated TestCase contains fail test method but should not '
+                'cause its configuration is correct. Error stacktrace:\n%s' %
+                mock.fail.call_args_list[0][0][0]
+            )
+
+        self.assertTrue(
+            self.check_if_class_contains_test_methods(CorrectConfig),
+            'TestCase should contain at least one generated test method.'
+        )
+
+        self.assert_generated_test_method(
+            CorrectConfig, expected_test_method_names[0], conf[0],
+            expected_docs[0], url, user_credentials)
+
+    @patch('skd_smoke.uuid4')
+    @patch('skd_smoke.resolve_url')
+    def test_generated_test_method_with_initialize_method(
+            self, mock_django_resolve_url, mock_uuid4):
+
+        initialize_mock = Mock()
+
+        conf = (
+            ('urlname_with_slug', 200, 'GET', {'initialize': initialize_mock}),
+        )
+
+        expected_test_method_names = [
+            'test_smoke_urlname_with_slug_get_200_ffffffff',
+        ]
+
+        expected_docs = self.generate_docs_from_configuration(conf)
+
+        mock_django_resolve_url.return_value = url = '/url/'
+        mock_uuid4.return_value = Mock(hex='ffffffff')
+
+        CorrectConfig = type(
+            str('CorrectConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
+
+        if self.check_if_class_contains_fail_test_method(CorrectConfig):
+            mock = self.call_cls_method_by_name(CorrectConfig,
+                                                'FAIL_METHOD_NAME')
+            self.fail(
+                'Generated TestCase contains fail test method but should not '
+                'cause its configuration is correct. Error stacktrace:\n%s' %
+                mock.fail.call_args_list[0][0][0]
+            )
+
+        self.assertTrue(
+            self.check_if_class_contains_test_methods(CorrectConfig),
+            'TestCase should contain at least one generated test method.'
+        )
+
+        self.assert_generated_test_method(
+            CorrectConfig, expected_test_method_names[0], conf[0],
+            expected_docs[0], url)
+
+        self.assertEqual(initialize_mock.call_count, 1)
