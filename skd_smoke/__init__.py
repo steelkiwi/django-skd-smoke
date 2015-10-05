@@ -3,6 +3,7 @@ from __future__ import unicode_literals, print_function
 
 import traceback
 from uuid import uuid4
+from six import string_types
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.handlers.wsgi import STATUS_CODE_TEXT
@@ -14,31 +15,48 @@ from django.utils import six
 # start configuration error messages
 IMPROPERLY_BUILT_CONFIGURATION_MSG = \
     'Every test method config should contain three or four elements (url, ' \
-    'status, method, data=None). Please review skd_smoke/tests.py or refer ' \
-    'to documentation on https://github.com/steelkiwi/django-skd-smoke'
+    'status, method, data=None).'
 
 EMPTY_TEST_CONFIGURATION_MSG = \
-    'django-skd-smoke TestCase has empty TESTS_CONFIGURATION. Please review ' \
-    'skd_smoke/tests.py or refer to project documentation on ' \
-    'https://github.com/steelkiwi/django-skd-smoke'
+    'django-skd-smoke TestCase has empty TESTS_CONFIGURATION.'
 
 INCORRECT_TEST_CONFIGURATION_MSG = \
     'django-skd-smoke TestCase should define TESTS_CONFIGURATION list or ' \
-    'tuple. Please review skd_smoke/tests.py or refer to project ' \
-    'documentation on https://github.com/steelkiwi/django-skd-smoke'
+    'tuple.'
 
 UNSUPPORTED_CONFIGURATION_KEY_MSG = \
     'django-skd-smoke configuration does not support those keys: %s.'
 
-CONFIGURATION_KEYS = {
-    'initialize',  # callable object which is called at the very beginning of
-                   # generated test method
-    'get_url_kwargs',  # callable object which returns dictionary to resolve
-                       # url using ``django.shortcuts.resolve_url``
-    'request_data',  # data dictionary which is passed into http method request
-    'get_user_credentials'  # callable object which returns dictionary to login
-                            # user into ``TestCase.client``
+
+REQUIRED_PARAMS = (
+    {'display_name': 'url', 'expected_type': string_types},
+    {'display_name': 'status', 'expected_type': int},
+    {'display_name': 'method', 'expected_type': string_types},
+)
+
+
+def dict_or_callable(d):
+    return isinstance(d, dict) or callable(d)
+
+# name and function
+NOT_REQUIRED_PARAM_TYPE_CHECK = {
+    'initialize': {'type': 'callable', 'func': callable},
+    'url_kwargs': {'type': 'dict or callable', 'func': dict_or_callable},
+    'request_data': {'type': 'dict or callable', 'func': dict_or_callable},
+    'user_credentials': {'type': 'dict or callable', 'func': dict_or_callable}
 }
+
+INCORRECT_REQUIRED_PARAM_TYPE_MSG = \
+    'django-skd-smoke: Configuration parameter "%s" with index=%s should be ' \
+    '%s but is %s with next value: %s.'
+
+INCORRECT_NOT_REQUIRED_PARAM_TYPE_MSG = \
+    'django-skd-smoke: Configuration parameter "%s" should be ' \
+    '%s but is %s with next value: %s.'
+
+LINK_TO_DOCUMENTATION = 'For more information please review ' \
+    'skd_smoke/tests.py or refer to project documentation on ' \
+    'https://github.com/steelkiwi/django-skd-smoke#configuration.'
 
 UNKNOWN_HTTP_METHOD_MSG = \
     'Your django-skd-smoke configuration defines unknown http method: "%s".'
@@ -46,10 +64,15 @@ UNKNOWN_HTTP_METHOD_MSG = \
 HTTP_METHODS = {'get', 'post', 'head', 'options', 'put', 'patch', 'detete',
                 'trace'}
 
-INCORRECT_USER_CREDENTIALS = 'Supplied user credentials are incorrect: %r. ' \
-    'Ensure that related user was created successfully.'
+INCORRECT_USER_CREDENTIALS = \
+    'Authentication process failed. Supplied user credentials are incorrect: '\
+    '%r. Ensure that related user was created successfully.'
 
 # end configuration error messages
+
+
+def append_doc_link(error_message):
+    return error_message + '\n' + LINK_TO_DOCUMENTATION
 
 
 def prepare_configuration(tests_configuration):
@@ -70,27 +93,62 @@ def prepare_configuration(tests_configuration):
         for test_config in tests_configuration:
             if len(test_config) == 3:
                 test_config += ({},)
+                check_dict = False
             elif len(test_config) == 4:
-                diff = set(test_config[3].keys()) - CONFIGURATION_KEYS
+                diff = set(test_config[3].keys()) - \
+                       set(NOT_REQUIRED_PARAM_TYPE_CHECK.keys())
                 if diff:
                     raise ImproperlyConfigured(
-                        UNSUPPORTED_CONFIGURATION_KEY_MSG % ', '.join(diff))
-
+                        append_doc_link(UNSUPPORTED_CONFIGURATION_KEY_MSG %
+                                        ', '.join(diff))
+                    )
+                check_dict = True
             else:
-                raise ImproperlyConfigured(IMPROPERLY_BUILT_CONFIGURATION_MSG)
+                raise ImproperlyConfigured(
+                    append_doc_link(IMPROPERLY_BUILT_CONFIGURATION_MSG)
+                )
+
+            type_errors = []
+
+            # required params check
+            for idx, required_param in enumerate(test_config[:3]):
+                required_type = REQUIRED_PARAMS[idx]['expected_type']
+                if not isinstance(required_param, required_type):
+                    type_errors.append(
+                        INCORRECT_REQUIRED_PARAM_TYPE_MSG %
+                        (REQUIRED_PARAMS[idx]['display_name'], idx,
+                         required_type, type(required_param), required_param)
+                    )
 
             http_method = test_config[2]
-            if http_method.lower() not in HTTP_METHODS:
-                raise ImproperlyConfigured(
-                    UNKNOWN_HTTP_METHOD_MSG % http_method)
+            if isinstance(http_method, REQUIRED_PARAMS[2]['expected_type']) \
+                    and http_method.lower() not in HTTP_METHODS:
+                type_errors.append(UNKNOWN_HTTP_METHOD_MSG % http_method)
+
+            # not required params check
+            if check_dict:
+                for key, value in test_config[3].items():
+                    type_info = NOT_REQUIRED_PARAM_TYPE_CHECK[key]
+                    function = type_info['func']
+                    if not function(value):
+                        type_errors.append(
+                            INCORRECT_NOT_REQUIRED_PARAM_TYPE_MSG %
+                            (key, type_info['type'], type(value), value)
+                        )
+
+            if type_errors:
+                type_errors.append(LINK_TO_DOCUMENTATION)
+                raise ImproperlyConfigured('\n'.join(type_errors))
 
             confs.append(test_config)
 
         if not confs:
-            raise ImproperlyConfigured(EMPTY_TEST_CONFIGURATION_MSG)
+            raise ImproperlyConfigured(
+                append_doc_link(EMPTY_TEST_CONFIGURATION_MSG))
 
     else:
-        raise ImproperlyConfigured(INCORRECT_TEST_CONFIGURATION_MSG)
+        raise ImproperlyConfigured(
+            append_doc_link(INCORRECT_TEST_CONFIGURATION_MSG))
 
     return confs
 
@@ -110,8 +168,8 @@ def generate_fail_test_method(exception_stacktrace):
 
 
 def generate_test_method(urlname, status, method='GET', initialize=None,
-                         get_url_kwargs=None, request_data=None,
-                         get_user_credentials=None):
+                         url_kwargs=None, request_data=None,
+                         user_credentials=None):
     """
     Generates test method which calls ``get_url_kwargs`` callable if any,
     resolves supplied ``urlname``, calls proper ``self.client`` method (get,
@@ -123,29 +181,38 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
     :param method: http method (get, post, etc.)
     :param initialize: callable object which is called in the very beginning \
         of test method
-    :param get_url_kwargs: callable object which returns dictionary to resolve\
-        url using ``django.shortcuts.resolve_url``
-    :param request_data: data dictionary which is passed into http method \
-        request
-    :param get_user_credentials: callable object which returns dictionary to \
-        login user into ``TestCase.client``
+    :param url_kwargs: dict or callable object which returns kwargs dict to \
+        resolve url using ``django.shortcuts.resolve_url``
+    :param request_data: dict or callable object which returns dict to pass it\
+        into http method request
+    :param user_credentials: dict or callable object which returns dict to \
+        login user using ``TestCase.client.login``
     :return: new test method
 
     """
     def new_test_method(self):
         if initialize:
             initialize(self)
-        if get_url_kwargs:
-            resolved_url = resolve_url(urlname, **get_url_kwargs(self))
+        if callable(url_kwargs):
+            prepared_url_kwargs = url_kwargs(self)
         else:
-            resolved_url = resolve_url(urlname)
-        prepared_data = request_data or {}
-        if get_user_credentials:
-            credentials = get_user_credentials(self)
+            prepared_url_kwargs = url_kwargs or {}
+
+        resolved_url = resolve_url(urlname, **prepared_url_kwargs)
+
+        if user_credentials:
+            if callable(user_credentials):
+                credentials = user_credentials(self)
+            else:
+                credentials = user_credentials
             logged_in = self.client.login(**credentials)
             self.assertTrue(
                 logged_in, INCORRECT_USER_CREDENTIALS % credentials)
         function = getattr(self.client, method.lower())
+        if callable(request_data):
+            prepared_data = request_data(self)
+        else:
+            prepared_data = request_data or {}
         response = function(resolved_url, data=prepared_data)
         self.assertEqual(response.status_code, status)
     return new_test_method
@@ -179,10 +246,13 @@ def prepare_test_method_doc(method, urlname, status, status_text, data):
     :param urlname: initial urlname
     :param status: http status code
     :param status_text: humanized http status
-    :param data: request data
+    :param data: request data as dict or callable
     :return: doc string
     """
-    data = data or {}
+    if callable(data):
+        data = data.__name__
+    else:
+        data = data or {}
     return '%(method)s %(urlname)s %(status)s "%(status_text)s" %(data)r' % {
         'method': method.upper(),
         'urlname': urlname,
@@ -225,9 +295,9 @@ class GenerateTestMethodsMeta(type):
         else:
             for urlname, status, method, data in config:
                 initialize = data.get('initialize', None)
-                get_url_kwargs = data.get('get_url_kwargs', None)
+                get_url_kwargs = data.get('url_kwargs', None)
                 request_data = data.get('request_data', None)
-                get_user_credentials = data.get('get_user_credentials', None)
+                get_user_credentials = data.get('user_credentials', None)
                 status_text = STATUS_CODE_TEXT.get(status, 'UNKNOWN')
 
                 test_method_name = prepare_test_name(urlname, method, status)
