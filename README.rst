@@ -22,6 +22,8 @@ Usage
 -----
 After installation you should create new ``TestCase`` derived from
 `skd_smoke.SmokeTestCase` and define your smoke tests configuration.
+Please review ``example_project`` directory which contains common django
+project and demonstrates django-skd-smoke usage.
 
 
 Configuration
