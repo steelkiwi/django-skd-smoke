@@ -21,7 +21,7 @@ You can get django-skd-smoke by using pip::
 Usage
 -----
 After installation you should create new ``TestCase`` derived from
-`skd_smoke.SmokeTestCase` and define your smoke tests configuration.
+``skd_smoke.SmokeTestCase`` and define your smoke tests configuration.
 Please review ``example_project`` directory which contains common django
 project and demonstrates django-skd-smoke usage.
 
@@ -33,8 +33,9 @@ tuples for every request with the next structure:
 
 .. code-block:: python
 
-    (url, status, method, {'initialize': None, 'url_kwargs': None,
-                           'request_data': None,'user_credentials': None})
+    (url, status, method, {'comment': None, 'initialize': None,
+                           'url_kwargs': None, 'request_data': None,
+                           'user_credentials': None})
 
 
 .. list-table::
@@ -45,14 +46,17 @@ tuples for every request with the next structure:
      - Description
      - Required
    * - url
-     - plain url or urlname as ``basestring``
+     - plain url or urlname as string
      - Yes
    * - status
      - http status code (200, 404, etc.) as ``int``
      - Yes
    * - method
-     - http request method (GET, POST, etc.) as ``basestring``
+     - http request method (GET, POST, etc.) as string
      - Yes
+   * - comment
+     - string which is added to ``__doc__`` of generated test method
+     - No
    * - initialize
      - callable object to do any required initialization
      - No

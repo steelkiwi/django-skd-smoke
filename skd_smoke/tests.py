@@ -13,6 +13,7 @@ class InitialSmokeTestCase(SmokeTestCase):
 
     TESTS_CONFIGURATION = (
         # (url, status, method, {
+        #       'comment': None,
         #       'initialize': None,
         #       'url_kwargs': None,
         #       'request_data': None,

@@ -6,6 +6,8 @@ from unittest import TestCase
 from mock import Mock, patch
 from django.core.exceptions import ImproperlyConfigured
 from django.core.handlers.wsgi import STATUS_CODE_TEXT
+from six import string_types
+
 from skd_smoke import generate_test_method, prepare_test_name, \
     prepare_configuration, generate_fail_test_method, prepare_test_method_doc,\
     SmokeTestCase, EMPTY_TEST_CONFIGURATION_MSG, \
@@ -17,6 +19,22 @@ from skd_smoke import generate_test_method, prepare_test_name, \
 
 
 class SmokeGeneratorTestCase(TestCase):
+
+    def test_required_params_definition(self):
+        for param_setting in REQUIRED_PARAMS:
+            self.assertIn('display_name', param_setting)
+            self.assertIsInstance(param_setting['display_name'], string_types)
+            self.assertIn('expected_type', param_setting)
+
+    def test_non_required_params_definition(self):
+        for param_name, param_type in NOT_REQUIRED_PARAM_TYPE_CHECK.items():
+            self.assertIsInstance(param_name, string_types)
+            self.assertIn('type', param_type)
+            self.assertIsInstance(param_type['type'], string_types)
+            self.assertIn('func', param_type)
+            self.assertTrue(callable(param_type['func']),
+                            'Non-required parameter type check func must be '
+                            'callable.')
 
     def test_prepare_configuration(self):
         test = prepare_configuration([('a', 200, 'GET'),
@@ -36,11 +54,12 @@ class SmokeGeneratorTestCase(TestCase):
 
     def test_prepare_configuration_with_all_incorrect_parameters(self):
         incorrect_required_params = [
-            100500,  # url should be basestring
+            100500,  # url should be string_types
             'incorrect',  # status should be int
-            666  # method should be basestring
+            666  # method should be string_types
         ]
         incorrect_not_required_params = {
+            'comment': 123,  # should be string_types
             'initialize': 'initialize',  # should be callable
             'url_kwargs': 'url_kwargs',  # should be dict or callable
             'request_data': 'request_data',  # should be dict or callable
@@ -142,22 +161,27 @@ class SmokeTestCaseTestCase(TestCase):
     def generate_docs_from_configuration(self, configuration):
         docs = []
         for c in configuration:
-            if c[3]:
-                conf_value = c[3].get('request_data', {})
+            if c[-1]:
+                conf_value = c[-1].get('request_data', {})
                 if callable(conf_value):
                     request_data = conf_value.__name__
                 else:
                     request_data = conf_value
+                comment = c[-1].get('comment', None)
             else:
+                comment = None
                 request_data = {}
-            docs.append('%(method)s %(url)s %(status_code)s "%(status)s" '
-                        '%(request_data)r' % {
+            doc = '%(method)s %(url)s %(status_code)s "%(status)s" ' \
+                  '%(request_data)r' % {
                             'method': c[2],
                             'url': c[0],
                             'status_code': c[1],
                             'status': STATUS_CODE_TEXT.get(c[1], 'UNKNOWN'),
                             'request_data': request_data
-                        })
+                        }
+            if comment:
+                doc = '%s %s' % (doc, comment)
+            docs.append(doc)
 
         return docs
 
@@ -331,7 +355,7 @@ class SmokeTestCaseTestCase(TestCase):
     def test_simple_generated_test_methods(self, mock_django_resolve_url,
                                            mock_uuid4):
         conf = (
-            ('/some_url/', 200, 'GET', {}),
+            ('/some_url/', 200, 'GET', {'comment': 'text comment'}),
             ('/comments/', 201, 'POST',
              {'request_data': {'message': 'new comment'}}),
             ('namespace:url', 200, 'GET', {}),

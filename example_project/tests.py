@@ -12,6 +12,11 @@ def create_article(testcase):
     return {'pk': article.pk}
 
 
+def create_articles(testcase):
+    Article.objects.create(headline='aaa')
+    Article.objects.create(headline='bbb')
+
+
 def get_user(testcase):
     username = 'test_user'
     password = '1234'
@@ -31,14 +36,25 @@ def get_article_data(testcase):
 class InitialSmokeTestCase(SmokeTestCase):
     TESTS_CONFIGURATION = (
         # (url, status, method, {
+        #       'comment': None,
         #       'initialize': None,
         #       'url_kwargs': None,
         #       'request_data': None,
         #       'user_credentials': None})
         ('admin:login', 200, 'GET'),
-        ('articles:articles', 200, 'GET'),
-        ('articles:article', 200, 'GET', {'url_kwargs': create_article}),
-        ('articles:create', 302, 'POST', {'request_data': get_article_data}),
-        ('is_authenticated', 302, 'GET'),
-        ('is_authenticated', 200, 'GET', {'user_credentials': get_user}),
+
+        ('articles:articles', 200, 'GET',
+         {'initialize': create_articles}),
+
+        ('articles:article', 200, 'GET',
+         {'url_kwargs': create_article}),
+
+        ('articles:create', 302, 'POST',
+         {'request_data': get_article_data}),
+
+        ('is_authenticated', 302, 'GET',
+         {'comment': 'Anonymous user access'}),
+
+        ('is_authenticated', 200, 'GET',
+         {'user_credentials': get_user, 'comment': 'Authorized user access'}),
     )
