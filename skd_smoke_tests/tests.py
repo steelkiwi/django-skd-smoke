@@ -40,7 +40,7 @@ class SmokeGeneratorTestCase(TestCase):
         test = prepare_configuration([('a', 200, 'GET'),
                                       ('b', 200, 'GET')])
         self.assertIsNotNone(test)
-        self.assertEquals(
+        self.assertEqual(
             test, [('a', 200, 'GET', {}), ('b', 200, 'GET', {})])
 
     def test_prepare_configuration_with_incorrect_http_method(self):
@@ -106,14 +106,14 @@ class SmokeGeneratorTestCase(TestCase):
     def test_generate_fail_test_method(self):
         test = generate_fail_test_method('test')
         self.assertIsNotNone(test)
-        self.assertEquals(type(test), types.FunctionType)
-        self.assertEquals(test.__name__, 'fail_method')
+        self.assertEqual(type(test), types.FunctionType)
+        self.assertEqual(test.__name__, 'fail_method')
 
     def test_generate_test_method(self):
         test = generate_test_method('urlname', 200)
         self.assertIsNotNone(test)
-        self.assertEquals(type(test), types.FunctionType)
-        self.assertEquals(test.__name__, 'new_test_method')
+        self.assertEqual(type(test), types.FunctionType)
+        self.assertEqual(test.__name__, 'new_test_method')
 
     def test_prepare_test_name_with_just_urlname(self):
         test = prepare_test_name('urlname', 'GET', 200)
@@ -134,7 +134,7 @@ class SmokeGeneratorTestCase(TestCase):
         test = prepare_test_method_doc('GET', 'urlname', 200, 'status_text',
                                        None)
         self.assertIsNotNone(test)
-        self.assertEquals(test, 'GET urlname 200 "status_text" {}')
+        self.assertEqual(test, 'GET urlname 200 "status_text" {}')
 
 
 class SmokeTestCaseTestCase(TestCase):
