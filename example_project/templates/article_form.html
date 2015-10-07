@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Create article</h1>
+    <form method="POST" action="{% url 'articles:create' %}">
+        {% csrf_token %}
+        {{ form.as_table }}
+        <input type="submit"/>
+    </form>
+{% endblock content %}

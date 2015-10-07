@@ -24,16 +24,21 @@ def get_user(testcase):
     return credentials
 
 
+def get_article_data(testcase):
+    return {'headline': 'new article'}
+
+
 class InitialSmokeTestCase(SmokeTestCase):
     TESTS_CONFIGURATION = (
         # (url, status, method, {
         #       'initialize': None,
-        #       'get_url_kwargs': None,
+        #       'url_kwargs': None,
         #       'request_data': None,
-        #       'get_user_credentials': None})
+        #       'user_credentials': None})
         ('admin:login', 200, 'GET'),
         ('articles:articles', 200, 'GET'),
-        ('articles:article', 200, 'GET', {'get_url_kwargs': create_article}),
+        ('articles:article', 200, 'GET', {'url_kwargs': create_article}),
+        ('articles:create', 302, 'POST', {'request_data': get_article_data}),
         ('is_authenticated', 302, 'GET'),
-        ('is_authenticated', 200, 'GET', {'get_user_credentials': get_user})
+        ('is_authenticated', 200, 'GET', {'user_credentials': get_user}),
     )

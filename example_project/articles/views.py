@@ -1,6 +1,6 @@
 
-from django.views.generic import ListView, DetailView
-from articles.models import Article
+from django.views.generic import ListView, DetailView, CreateView
+from .models import Article
 
 
 class ArticlesView(ListView):
@@ -9,6 +9,14 @@ class ArticlesView(ListView):
     context_object_name = 'articles'
 
 
-class ArticleView(DetailView):
+class ArticleDetailView(DetailView):
     model = Article
     template_name = 'article.html'
+
+
+class ArticleCreateView(CreateView):
+    model = Article
+    fields = ('headline', 'description')
+    template_name = 'article_form.html'
+
+
