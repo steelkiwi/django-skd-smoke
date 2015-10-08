@@ -229,7 +229,8 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
         response = function(resolved_url, data=prepared_data)
         self.assertEqual(response.status_code, status)
         if status in (301, 302, 303, 307) and redirect_to:
-            self.assertRedirects(response, redirect_to)
+            self.assertRedirects(response, redirect_to,
+                                 fetch_redirect_response=False)
     return new_test_method
 
 

@@ -236,7 +236,7 @@ class SmokeTestCaseTestCase(TestCase):
 
         if redirect_to:
             testcase_mock.assertRedirects.assert_called_once_with(
-                response, redirect_to
+                response, redirect_to, fetch_redirect_response=False
             )
         else:
             testcase_mock.assertRedirects.assert_not_called()
