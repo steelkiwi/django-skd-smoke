@@ -219,7 +219,7 @@ class SmokeTestCaseTestCase(TestCase):
         # check actual run
         client_mock = Mock(**method_mocks)
 
-        testcase_mock = Mock(spec=cls, assertEquals=Mock(), client=client_mock,
+        testcase_mock = Mock(spec=cls, assertEqual=Mock(), client=client_mock,
                              assertTrue=Mock(), assertRedirects=Mock())
         test_method(testcase_mock)
 
@@ -228,7 +228,7 @@ class SmokeTestCaseTestCase(TestCase):
             request_data = request_data(testcase_mock)
         getattr(client_mock, method_lower).assert_called_once_with(
             url, data=request_data)
-        testcase_mock.assertEquals.assert_called_once_with(
+        testcase_mock.assertEqual.assert_called_once_with(
             status_code, status_code)
 
         if user_credentials:
