@@ -62,8 +62,8 @@ INCORRECT_NOT_REQUIRED_PARAM_TYPE_MSG = \
     'django-skd-smoke: Configuration parameter "%s" should be ' \
     '%s but is %s with next value: %s.'
 
-LINK_TO_DOCUMENTATION = 'For more information please review ' \
-    'skd_smoke/tests.py or refer to project documentation on ' \
+LINK_TO_DOCUMENTATION = \
+    'For more information please refer to project documentation on ' \
     'https://github.com/steelkiwi/django-skd-smoke#configuration.'
 
 UNKNOWN_HTTP_METHOD_MSG = \

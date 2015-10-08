@@ -15,7 +15,7 @@ Installation
 
 You can get django-skd-smoke by using pip::
 
-    $ pip install https://github.com/steelkiwi/django-skd-smoke/archive/master.zip
+    $ pip install django-skd-smoke
 
 
 Usage
