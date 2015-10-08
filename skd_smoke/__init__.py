@@ -35,15 +35,23 @@ REQUIRED_PARAMS = (
 )
 
 
+def check_type(types):
+    def check(obj):
+        return isinstance(obj, types)
+    return check
+
+
 def dict_or_callable(d):
     return isinstance(d, dict) or callable(d)
 
 # name and function
 NOT_REQUIRED_PARAM_TYPE_CHECK = {
+    'comment': {'type': 'string', 'func': check_type(string_types)},
     'initialize': {'type': 'callable', 'func': callable},
     'url_kwargs': {'type': 'dict or callable', 'func': dict_or_callable},
     'request_data': {'type': 'dict or callable', 'func': dict_or_callable},
-    'user_credentials': {'type': 'dict or callable', 'func': dict_or_callable}
+    'user_credentials': {'type': 'dict or callable', 'func': dict_or_callable},
+    'redirect_to': {'type': 'string', 'func': check_type(string_types)},
 }
 
 INCORRECT_REQUIRED_PARAM_TYPE_MSG = \
@@ -90,12 +98,15 @@ def prepare_configuration(tests_configuration):
 
     if isinstance(tests_configuration, (tuple, list)):
 
+        number_of_required_params = len(REQUIRED_PARAMS)
+        total_number_of_params = number_of_required_params + 1
+
         for test_config in tests_configuration:
-            if len(test_config) == 3:
+            if len(test_config) == number_of_required_params:
                 test_config += ({},)
                 check_dict = False
-            elif len(test_config) == 4:
-                diff = set(test_config[3].keys()) - \
+            elif len(test_config) == total_number_of_params:
+                diff = set(test_config[-1].keys()) - \
                        set(NOT_REQUIRED_PARAM_TYPE_CHECK.keys())
                 if diff:
                     raise ImproperlyConfigured(
@@ -127,7 +138,7 @@ def prepare_configuration(tests_configuration):
 
             # not required params check
             if check_dict:
-                for key, value in test_config[3].items():
+                for key, value in test_config[-1].items():
                     type_info = NOT_REQUIRED_PARAM_TYPE_CHECK[key]
                     function = type_info['func']
                     if not function(value):
@@ -169,7 +180,7 @@ def generate_fail_test_method(exception_stacktrace):
 
 def generate_test_method(urlname, status, method='GET', initialize=None,
                          url_kwargs=None, request_data=None,
-                         user_credentials=None):
+                         user_credentials=None, redirect_to=None):
     """
     Generates test method which calls ``get_url_kwargs`` callable if any,
     resolves supplied ``urlname``, calls proper ``self.client`` method (get,
@@ -187,6 +198,8 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
         into http method request
     :param user_credentials: dict or callable object which returns dict to \
         login user using ``TestCase.client.login``
+    :param redirect_to: plain url which is checked if only expected status \
+        code is one of the [301, 302, 303, 307]
     :return: new test method
 
     """
@@ -215,6 +228,9 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
             prepared_data = request_data or {}
         response = function(resolved_url, data=prepared_data)
         self.assertEqual(response.status_code, status)
+        if status in (301, 302, 303, 307) and redirect_to:
+            self.assertRedirects(response, redirect_to,
+                                 fetch_redirect_response=False)
     return new_test_method
 
 
@@ -238,7 +254,8 @@ def prepare_test_name(urlname, method, status):
     return name
 
 
-def prepare_test_method_doc(method, urlname, status, status_text, data):
+def prepare_test_method_doc(method, urlname, status, status_text, data,
+                            comment=None):
     """
     Prepares doc string to describe called http query.
 
@@ -247,19 +264,24 @@ def prepare_test_method_doc(method, urlname, status, status_text, data):
     :param status: http status code
     :param status_text: humanized http status
     :param data: request data as dict or callable
+    :param comment: comment is added to the end of the result
     :return: doc string
     """
     if callable(data):
         data = data.__name__
     else:
         data = data or {}
-    return '%(method)s %(urlname)s %(status)s "%(status_text)s" %(data)r' % {
+    result = '%(method)s %(urlname)s %(status)s "%(status_text)s" %(data)r' % {
         'method': method.upper(),
         'urlname': urlname,
         'status': status,
         'status_text': status_text,
         'data': data
     }
+    # append comment to the end if any
+    if comment:
+        result = '%s %s' % (result, comment)
+    return result
 
 
 class GenerateTestMethodsMeta(type):
@@ -294,21 +316,25 @@ class GenerateTestMethodsMeta(type):
             setattr(cls, fail_method_name, fail_method)
         else:
             for urlname, status, method, data in config:
+                comment = data.get('comment', None)
                 initialize = data.get('initialize', None)
                 get_url_kwargs = data.get('url_kwargs', None)
                 request_data = data.get('request_data', None)
                 get_user_credentials = data.get('user_credentials', None)
+                redirect_to = data.get('redirect_to', None)
                 status_text = STATUS_CODE_TEXT.get(status, 'UNKNOWN')
 
                 test_method_name = prepare_test_name(urlname, method, status)
 
                 test_method = generate_test_method(
                     urlname, status, method, initialize, get_url_kwargs,
-                    request_data, get_user_credentials
+                    request_data, get_user_credentials, redirect_to
                 )
                 test_method.__name__ = str(test_method_name)
                 test_method.__doc__ = prepare_test_method_doc(
-                    method, urlname, status, status_text, request_data)
+                    method, urlname, status, status_text, request_data,
+                    comment
+                )
 
                 setattr(cls, test_method_name, test_method)
 
@@ -318,7 +344,17 @@ class GenerateTestMethodsMeta(type):
 class SmokeTestCase(six.with_metaclass(GenerateTestMethodsMeta, TestCase)):
     """
     TestCase which should be derived by any library user. It's required
-    to define ``TESTS_CONFIGURATION`` inside subclass.
+    to define ``TESTS_CONFIGURATION`` inside subclass. It should be defined as
+    tuple or list of tuples with next structure:
+
+        (url, status, method,
+            {'comment': None, 'initialize': None,
+            'url_kwargs': None, 'request_data': None,
+            'user_credentials': None, 'redirect_to': None})
+
+    For more information please refer to project documentation:
+    https://github.com/steelkiwi/django-skd-smoke#configuration
     """
+
     TESTS_CONFIGURATION = None
     FAIL_METHOD_NAME = 'test_fail_cause_bad_configuration'

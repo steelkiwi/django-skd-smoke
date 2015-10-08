@@ -13,10 +13,13 @@ class InitialSmokeTestCase(SmokeTestCase):
 
     TESTS_CONFIGURATION = (
         # (url, status, method, {
+        #       'comment': None,
         #       'initialize': None,
         #       'url_kwargs': None,
         #       'request_data': None,
-        #       'user_credentials': None})
+        #       'user_credentials': None
+        #       'redirect_to': None
+        # })
         ('admin:login', 200, 'GET'),
         # the same:
         # ('admin:login', 200, 'GET', {}),
