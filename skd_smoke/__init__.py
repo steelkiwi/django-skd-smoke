@@ -50,7 +50,8 @@ NOT_REQUIRED_PARAM_TYPE_CHECK = {
     'initialize': {'type': 'callable', 'func': callable},
     'url_kwargs': {'type': 'dict or callable', 'func': dict_or_callable},
     'request_data': {'type': 'dict or callable', 'func': dict_or_callable},
-    'user_credentials': {'type': 'dict or callable', 'func': dict_or_callable}
+    'user_credentials': {'type': 'dict or callable', 'func': dict_or_callable},
+    'redirect_to': {'type': 'string', 'func': check_type(string_types)},
 }
 
 INCORRECT_REQUIRED_PARAM_TYPE_MSG = \
@@ -179,7 +180,7 @@ def generate_fail_test_method(exception_stacktrace):
 
 def generate_test_method(urlname, status, method='GET', initialize=None,
                          url_kwargs=None, request_data=None,
-                         user_credentials=None):
+                         user_credentials=None, redirect_to=None):
     """
     Generates test method which calls ``get_url_kwargs`` callable if any,
     resolves supplied ``urlname``, calls proper ``self.client`` method (get,
@@ -197,6 +198,8 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
         into http method request
     :param user_credentials: dict or callable object which returns dict to \
         login user using ``TestCase.client.login``
+    :param redirect_to: plain url which is checked if only expected status \
+        code is one of the [301, 302, 303, 307]
     :return: new test method
 
     """
@@ -224,7 +227,9 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
         else:
             prepared_data = request_data or {}
         response = function(resolved_url, data=prepared_data)
-        self.assertEqual(response.status_code, status)
+        self.assertEquals(response.status_code, status)
+        if status in (301, 302, 303, 307) and redirect_to:
+            self.assertRedirects(response, redirect_to)
     return new_test_method
 
 
@@ -315,13 +320,14 @@ class GenerateTestMethodsMeta(type):
                 get_url_kwargs = data.get('url_kwargs', None)
                 request_data = data.get('request_data', None)
                 get_user_credentials = data.get('user_credentials', None)
+                redirect_to = data.get('redirect_to', None)
                 status_text = STATUS_CODE_TEXT.get(status, 'UNKNOWN')
 
                 test_method_name = prepare_test_name(urlname, method, status)
 
                 test_method = generate_test_method(
                     urlname, status, method, initialize, get_url_kwargs,
-                    request_data, get_user_credentials
+                    request_data, get_user_credentials, redirect_to
                 )
                 test_method.__name__ = str(test_method_name)
                 test_method.__doc__ = prepare_test_method_doc(
@@ -343,7 +349,7 @@ class SmokeTestCase(six.with_metaclass(GenerateTestMethodsMeta, TestCase)):
         (url, status, method,
             {'comment': None, 'initialize': None,
             'url_kwargs': None, 'request_data': None,
-            'user_credentials': None})
+            'user_credentials': None, 'redirect_to': None})
 
     For more information please refer to project documentation:
     https://github.com/steelkiwi/django-skd-smoke#configuration

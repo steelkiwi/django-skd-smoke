@@ -59,6 +59,7 @@ class SmokeGeneratorTestCase(TestCase):
             666  # method should be string_types
         ]
         incorrect_not_required_params = {
+            'redirect_to': 123,  # should be string_types
             'comment': 123,  # should be string_types
             'initialize': 'initialize',  # should be callable
             'url_kwargs': 'url_kwargs',  # should be dict or callable
@@ -191,7 +192,7 @@ class SmokeTestCaseTestCase(TestCase):
         self.assertIn(msg, mock.fail.call_args_list[0][0][0])
 
     def assert_generated_test_method(self, cls, name, configuration, doc, url,
-                                     user_credentials=None):
+                                     user_credentials=None, redirect_to=None):
         # check existence
         self.assertTrue(hasattr(cls, name),
                         'There is no "%s" in %s but should be.' % (name, cls))
@@ -207,7 +208,7 @@ class SmokeTestCaseTestCase(TestCase):
         self.assertEqual(test_method.__doc__, doc)
 
         method_mock = Mock()
-        method_mock.return_value = Mock(status_code=status_code)
+        method_mock.return_value = response = Mock(status_code=status_code)
 
         method_mocks = {method_lower: method_mock}
 
@@ -218,8 +219,8 @@ class SmokeTestCaseTestCase(TestCase):
         # check actual run
         client_mock = Mock(**method_mocks)
 
-        testcase_mock = Mock(spec=cls, assertEqual=Mock(), client=client_mock,
-                             assertTrue=Mock())
+        testcase_mock = Mock(spec=cls, assertEquals=Mock(), client=client_mock,
+                             assertTrue=Mock(), assertRedirects=Mock())
         test_method(testcase_mock)
 
         request_data = params.get('request_data', {})
@@ -227,11 +228,18 @@ class SmokeTestCaseTestCase(TestCase):
             request_data = request_data(testcase_mock)
         getattr(client_mock, method_lower).assert_called_once_with(
             url, data=request_data)
-        testcase_mock.assertEqual.assert_called_once_with(
+        testcase_mock.assertEquals.assert_called_once_with(
             status_code, status_code)
 
         if user_credentials:
             login_mock.assert_called_once_with(**user_credentials)
+
+        if redirect_to:
+            testcase_mock.assertRedirects.assert_called_once_with(
+                response, redirect_to
+            )
+        else:
+            testcase_mock.assertRedirects.assert_not_called()
 
     def test_empty_configuration(self):
         EmptyConfig = type(
@@ -355,7 +363,7 @@ class SmokeTestCaseTestCase(TestCase):
     def test_simple_generated_test_methods(self, mock_django_resolve_url,
                                            mock_uuid4):
         conf = (
-            ('/some_url/', 200, 'GET', {'comment': 'text comment'}),
+            ('/some_url/', 302, 'GET', {'comment': 'text comment'}),
             ('/comments/', 201, 'POST',
              {'request_data': {'message': 'new comment'}}),
             ('namespace:url', 200, 'GET', {}),
@@ -363,7 +371,7 @@ class SmokeTestCaseTestCase(TestCase):
         )
 
         expected_test_method_names = [
-            'test_smoke_some_url_get_200_ffffffff',
+            'test_smoke_some_url_get_302_ffffffff',
             'test_smoke_comments_post_201_ffffffff',
             'test_smoke_namespace_url_get_200_ffffffff',
             'test_smoke_some_url2_get_200_ffffffff',
@@ -396,6 +404,49 @@ class SmokeTestCaseTestCase(TestCase):
         for i, name in enumerate(expected_test_method_names):
             self.assert_generated_test_method(CorrectConfig, name, conf[i],
                                               expected_docs[i], url)
+
+    @patch('skd_smoke.uuid4')
+    @patch('skd_smoke.resolve_url')
+    def test_generated_test_method_with_redirect_to_setting(
+            self, mock_django_resolve_url, mock_uuid4):
+
+        redirect_url = '/redirect_url/'
+
+        conf = (
+            ('urlname', 302, 'GET', {'redirect_to': redirect_url}),
+        )
+
+        expected_test_method_names = [
+            'test_smoke_urlname_get_302_ffffffff',
+        ]
+
+        expected_docs = self.generate_docs_from_configuration(conf)
+
+        mock_django_resolve_url.return_value = url = '/url/'
+        mock_uuid4.return_value = Mock(hex='ffffffff')
+
+        CorrectConfig = type(
+            str('CorrectConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
+
+        if self.check_if_class_contains_fail_test_method(CorrectConfig):
+            mock = self.call_cls_method_by_name(CorrectConfig,
+                                                'FAIL_METHOD_NAME')
+            self.fail(
+                'Generated TestCase contains fail test method but should not '
+                'cause its configuration is correct. Error stacktrace:\n%s' %
+                mock.fail.call_args_list[0][0][0]
+            )
+
+        self.assertTrue(
+            self.check_if_class_contains_test_methods(CorrectConfig),
+            'TestCase should contain at least one generated test method.'
+        )
+
+        self.assert_generated_test_method(
+            CorrectConfig, expected_test_method_names[0], conf[0],
+            expected_docs[0], url, redirect_to=redirect_url)
 
     @patch('skd_smoke.uuid4')
     @patch('skd_smoke.resolve_url')

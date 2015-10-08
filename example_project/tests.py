@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.contrib.auth import get_user_model
+from django.core.urlresolvers import reverse
 
 from articles.models import Article
 from skd_smoke import SmokeTestCase
@@ -40,7 +41,9 @@ class InitialSmokeTestCase(SmokeTestCase):
         #       'initialize': None,
         #       'url_kwargs': None,
         #       'request_data': None,
-        #       'user_credentials': None})
+        #       'user_credentials': None
+        #       'redirect_to': None
+        # })
         ('admin:login', 200, 'GET'),
 
         ('articles:articles', 200, 'GET',
@@ -53,7 +56,9 @@ class InitialSmokeTestCase(SmokeTestCase):
          {'request_data': get_article_data}),
 
         ('is_authenticated', 302, 'GET',
-         {'comment': 'Anonymous user access'}),
+         {'comment': 'Anonymous user access with check of redirect url',
+          'redirect_to': '%s?next=%s' % (reverse('login'),
+                                         reverse('is_authenticated'))}),
 
         ('is_authenticated', 200, 'GET',
          {'user_credentials': get_user, 'comment': 'Authorized user access'}),

@@ -35,7 +35,7 @@ tuples for every request with the next structure:
 
     (url, status, method, {'comment': None, 'initialize': None,
                            'url_kwargs': None, 'request_data': None,
-                           'user_credentials': None})
+                           'user_credentials': None, 'redirect_to': None})
 
 
 .. list-table::
@@ -68,6 +68,9 @@ tuples for every request with the next structure:
      - No
    * - user_credentials
      - dict or callable object which returns dict to login user using ``django.test.TestCase.client.login``
+     - No
+   * - redirect_to
+     - plain url as string which is checked if only status is one of the next: 301, 302, 303, 307
      - No
 
 **NOTE!** All callables take your ``TestCase`` as the first argument so
@@ -156,9 +159,29 @@ create your objects.
             ),
         )
 
+3. Usage of ``redirect_to`` setting to test anonymous access of login required
+pages.
 
 
-3. Usage of ``url_kwargs`` and ``user_credentials`` callbacks to test
+.. code-block:: python
+
+    from django.core.urlresolvers import reverse
+
+    from skd_smoke import SmokeTestCase
+
+    from ..models import SomeModel
+
+
+    class YourSmokeTests(SmokeTestCase):
+        TESTS_CONFIGURATION = (
+            ('profile', 302, 'GET', {
+                'redirect_to': '%s?next=%s' % (reverse('login'),
+                                               reverse('profile')),
+                'comment': 'Anonymous profile access with check of redirect url'
+            }),
+        )
+
+4. Usage of ``url_kwargs`` and ``user_credentials`` callbacks to test
 authorized access of owner to newly created object.
 
 Suppose you have a model which unpublished version can be viewed by its owner
