@@ -266,17 +266,17 @@ iii. Only owner access returns actual article with status 200.
         TESTS_CONFIGURATION = (
             ('articles:article', 404, 'GET',
                 {'url_kwargs': create_article_without_owner,
-                 'comment': 'Anonymous access to unpublished article.'}),  # i
+                 'comment': 'Anonymous access to unpublished article.'}),  # 1
 
             ('articles:article', 404, 'GET',
                 {'url_kwargs': create_article_without_owner,
                  'user_credentials': create_and_return_user_credentials,
-                 'comment': 'Some user access to unpublished article.'}),  # ii
+                 'comment': 'Some user access to unpublished article.'}),  # 2
 
             ('articles:article', 200, 'GET',
                 {'url_kwargs': create_article_with_its_owner,
                  'user_credentials': get_owner_credentials,
-                 'comment': 'Owner access to unpublished article.'}),  # iii
+                 'comment': 'Owner access to unpublished article.'}),  # 3
         )
 
 License
