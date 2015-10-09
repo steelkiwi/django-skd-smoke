@@ -8,7 +8,18 @@ django-skd-smoke
 .. image:: https://coveralls.io/repos/steelkiwi/django-skd-smoke/badge.svg?branch=master&service=github
     :target: https://coveralls.io/github/steelkiwi/django-skd-smoke?branch=master
 
+.. image:: https://img.shields.io/pypi/l/django-skd-smoke.svg
+    :target: https://pypi.python.org/pypi/django-skd-smoke
+
+.. image:: https://img.shields.io/pypi/v/django-skd-smoke.svg
+    :target: https://pypi.python.org/pypi/django-skd-smoke
+
+.. image:: https://img.shields.io/pypi/pyversions/django-skd-smoke.svg
+    :target: https://pypi.python.org/pypi/django-skd-smoke
+
 This package is intended for simplification of smoke tests creation.
+
+.. contents::
 
 Installation
 ------------
@@ -23,7 +34,8 @@ Usage
 After installation you should create new ``TestCase`` derived from
 ``skd_smoke.SmokeTestCase`` and define your smoke tests configuration.
 Please review ``example_project`` directory which contains common django
-project and demonstrates django-skd-smoke usage.
+project and demonstrates django-skd-smoke usage (inside
+``example_project/tests.py``) or `Examples`_ section.
 
 
 Configuration
@@ -144,8 +156,6 @@ create your objects.
 
     from skd_smoke import SmokeTestCase
 
-    from ..models import SomeModel
-
 
     def create_list(testcase):
         for i in range(3):
@@ -220,3 +230,7 @@ callback and transfering user to ``user_credentials`` callback.
         )
 
 
+License
+-------
+
+MIT
