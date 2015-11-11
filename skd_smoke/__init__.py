@@ -41,19 +41,19 @@ def check_type(types):
     return check
 
 
-def dict_or_callable(d):
-    return isinstance(d, dict) or callable(d)
-
-
 def list_or_callable(l):
     return isinstance(l, (list, tuple)) or callable(l)
+
+
+def dict_or_callable(d):
+    return isinstance(d, dict) or callable(d)
 
 
 # name and function
 NOT_REQUIRED_PARAM_TYPE_CHECK = {
     'comment': {'type': 'string', 'func': check_type(string_types)},
     'initialize': {'type': 'callable', 'func': callable},
-    'url_args': {'type': 'dict or callable', 'func': list_or_callable},
+    'url_args': {'type': 'list or callable', 'func': list_or_callable},
     'url_kwargs': {'type': 'dict or callable', 'func': dict_or_callable},
     'request_data': {'type': 'dict or callable', 'func': dict_or_callable},
     'user_credentials': {'type': 'dict or callable', 'func': dict_or_callable},
@@ -188,7 +188,7 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
                          url_args=None, url_kwargs=None, request_data=None,
                          user_credentials=None, redirect_to=None):
     """
-    Generates test method which calls ``url_kwargs`` callable if any,
+    Generates test method which takes or calls ``url_args`` and ``url_kwargs``,
     resolves supplied ``urlname``, calls proper ``self.client`` method (get,
     post, etc.) with ``request_data`` if any and compares response status with
     parameter ``status`` using ``assertEqual``.
@@ -214,15 +214,16 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
     def new_test_method(self):
         if initialize:
             initialize(self)
-        if callable(url_kwargs):
-            prepared_url_kwargs = url_kwargs(self)
-        else:
-            prepared_url_kwargs = url_kwargs or {}
 
         if callable(url_args):
             prepared_url_args = url_args(self)
         else:
             prepared_url_args = url_args or []
+
+        if callable(url_kwargs):
+            prepared_url_kwargs = url_kwargs(self)
+        else:
+            prepared_url_kwargs = url_kwargs or {}
 
         resolved_url = resolve_url(
             urlname, *prepared_url_args, **prepared_url_kwargs)
