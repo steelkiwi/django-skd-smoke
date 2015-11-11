@@ -44,10 +44,16 @@ def check_type(types):
 def dict_or_callable(d):
     return isinstance(d, dict) or callable(d)
 
+
+def list_or_callable(l):
+    return isinstance(l, (list, tuple)) or callable(l)
+
+
 # name and function
 NOT_REQUIRED_PARAM_TYPE_CHECK = {
     'comment': {'type': 'string', 'func': check_type(string_types)},
     'initialize': {'type': 'callable', 'func': callable},
+    'url_args': {'type': 'dict or callable', 'func': list_or_callable},
     'url_kwargs': {'type': 'dict or callable', 'func': dict_or_callable},
     'request_data': {'type': 'dict or callable', 'func': dict_or_callable},
     'user_credentials': {'type': 'dict or callable', 'func': dict_or_callable},
@@ -179,10 +185,10 @@ def generate_fail_test_method(exception_stacktrace):
 
 
 def generate_test_method(urlname, status, method='GET', initialize=None,
-                         url_kwargs=None, request_data=None,
+                         url_args=None, url_kwargs=None, request_data=None,
                          user_credentials=None, redirect_to=None):
     """
-    Generates test method which calls ``get_url_kwargs`` callable if any,
+    Generates test method which calls ``url_kwargs`` callable if any,
     resolves supplied ``urlname``, calls proper ``self.client`` method (get,
     post, etc.) with ``request_data`` if any and compares response status with
     parameter ``status`` using ``assertEqual``.
@@ -192,6 +198,8 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
     :param method: http method (get, post, etc.)
     :param initialize: callable object which is called in the very beginning \
         of test method
+    :param url_args: list or callable object which returns args list to \
+        resolve url using ``django.shortcuts.resolve_url``
     :param url_kwargs: dict or callable object which returns kwargs dict to \
         resolve url using ``django.shortcuts.resolve_url``
     :param request_data: dict or callable object which returns dict to pass it\
@@ -211,7 +219,13 @@ def generate_test_method(urlname, status, method='GET', initialize=None,
         else:
             prepared_url_kwargs = url_kwargs or {}
 
-        resolved_url = resolve_url(urlname, **prepared_url_kwargs)
+        if callable(url_args):
+            prepared_url_args = url_args(self)
+        else:
+            prepared_url_args = url_args or []
+
+        resolved_url = resolve_url(
+            urlname, *prepared_url_args, **prepared_url_kwargs)
 
         if user_credentials:
             if callable(user_credentials):
@@ -318,7 +332,8 @@ class GenerateTestMethodsMeta(type):
             for urlname, status, method, data in config:
                 comment = data.get('comment', None)
                 initialize = data.get('initialize', None)
-                get_url_kwargs = data.get('url_kwargs', None)
+                url_args = data.get('url_args', None)
+                url_kwargs = data.get('url_kwargs', None)
                 request_data = data.get('request_data', None)
                 get_user_credentials = data.get('user_credentials', None)
                 redirect_to = data.get('redirect_to', None)
@@ -327,7 +342,7 @@ class GenerateTestMethodsMeta(type):
                 test_method_name = prepare_test_name(urlname, method, status)
 
                 test_method = generate_test_method(
-                    urlname, status, method, initialize, get_url_kwargs,
+                    urlname, status, method, initialize, url_args, url_kwargs,
                     request_data, get_user_credentials, redirect_to
                 )
                 test_method.__name__ = str(test_method_name)

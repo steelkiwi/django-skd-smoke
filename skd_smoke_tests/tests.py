@@ -62,6 +62,7 @@ class SmokeGeneratorTestCase(TestCase):
             'redirect_to': 123,  # should be string_types
             'comment': 123,  # should be string_types
             'initialize': 'initialize',  # should be callable
+            'url_args': 'url_args',  # should be list or callable
             'url_kwargs': 'url_kwargs',  # should be dict or callable
             'request_data': 'request_data',  # should be dict or callable
             'user_credentials': 'user'  # should be dict or callable
@@ -593,6 +594,107 @@ class SmokeTestCaseTestCase(TestCase):
         # url kwargs returned from call of get_url_kwargs() method
         mock_django_resolve_url.assert_called_once_with(
             conf[0][0], **url_kwargs)
+
+    @patch('skd_smoke.uuid4')
+    @patch('skd_smoke.resolve_url')
+    def test_generated_test_method_with_url_args_as_dict(
+            self, mock_django_resolve_url, mock_uuid4):
+
+        url_args = ['arg1']
+
+        conf = (
+            ('urlname_with_arg', 200, 'GET',
+             {'url_args': url_args}),
+        )
+
+        expected_test_method_names = [
+            'test_smoke_urlname_with_arg_get_200_ffffffff',
+        ]
+
+        expected_docs = self.generate_docs_from_configuration(conf)
+
+        mock_django_resolve_url.return_value = url = '/url/'
+        mock_uuid4.return_value = Mock(hex='ffffffff')
+
+        CorrectConfig = type(
+            str('CorrectConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
+
+        if self.check_if_class_contains_fail_test_method(CorrectConfig):
+            mock = self.call_cls_method_by_name(CorrectConfig,
+                                                'FAIL_METHOD_NAME')
+            self.fail(
+                'Generated TestCase contains fail test method but should not '
+                'cause its configuration is correct. Error stacktrace:\n%s' %
+                mock.fail.call_args_list[0][0][0]
+            )
+
+        self.assertTrue(
+            self.check_if_class_contains_test_methods(CorrectConfig),
+            'TestCase should contain at least one generated test method.'
+        )
+
+        self.assert_generated_test_method(
+            CorrectConfig, expected_test_method_names[0], conf[0],
+            expected_docs[0], url)
+
+        # actual check that resolve_url was called with correct urlname AND
+        # url kwargs returned from call of get_url_kwargs() method
+        mock_django_resolve_url.assert_called_once_with(
+            conf[0][0], *url_args)
+
+    @patch('skd_smoke.uuid4')
+    @patch('skd_smoke.resolve_url')
+    def test_generated_test_method_with_url_args_as_callable(
+            self, mock_django_resolve_url, mock_uuid4):
+
+        url_args = ['arg1']
+
+        def get_url_args(testcase):
+            return url_args
+
+        conf = (
+            ('urlname_with_arg', 200, 'GET',
+             {'url_args': get_url_args}),
+        )
+
+        expected_test_method_names = [
+            'test_smoke_urlname_with_arg_get_200_ffffffff',
+        ]
+
+        expected_docs = self.generate_docs_from_configuration(conf)
+
+        mock_django_resolve_url.return_value = url = '/url/'
+        mock_uuid4.return_value = Mock(hex='ffffffff')
+
+        CorrectConfig = type(
+            str('CorrectConfig'),
+            (SmokeTestCase,),
+            {'TESTS_CONFIGURATION': conf})
+
+        if self.check_if_class_contains_fail_test_method(CorrectConfig):
+            mock = self.call_cls_method_by_name(CorrectConfig,
+                                                'FAIL_METHOD_NAME')
+            self.fail(
+                'Generated TestCase contains fail test method but should not '
+                'cause its configuration is correct. Error stacktrace:\n%s' %
+                mock.fail.call_args_list[0][0][0]
+            )
+
+        self.assertTrue(
+            self.check_if_class_contains_test_methods(CorrectConfig),
+            'TestCase should contain at least one generated test method.'
+        )
+
+        self.assert_generated_test_method(
+            CorrectConfig, expected_test_method_names[0], conf[0],
+            expected_docs[0], url)
+
+        # actual check that resolve_url was called with correct urlname AND
+        # url kwargs returned from call of get_url_args() method
+        mock_django_resolve_url.assert_called_once_with(
+            conf[0][0], *url_args)
 
     @patch('skd_smoke.uuid4')
     @patch('skd_smoke.resolve_url')

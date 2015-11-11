@@ -72,6 +72,9 @@ tuples for every request with the next structure:
    * - initialize
      - callable object to do any required initialization
      - No
+   * - url_args
+     - list or callable object which returns args list to resolve url using ``django.shortcuts.resolve_url``
+     - No
    * - url_kwargs
      - dict or callable object which returns kwargs dict to resolve url using ``django.shortcuts.resolve_url``
      - No
