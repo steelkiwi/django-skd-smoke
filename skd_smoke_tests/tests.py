@@ -597,7 +597,7 @@ class SmokeTestCaseTestCase(TestCase):
 
     @patch('skd_smoke.uuid4')
     @patch('skd_smoke.resolve_url')
-    def test_generated_test_method_with_url_args_as_dict(
+    def test_generated_test_method_with_url_args_as_list(
             self, mock_django_resolve_url, mock_uuid4):
 
         url_args = ['arg1']
